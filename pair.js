@@ -228,31 +228,24 @@ router.get('/', async (req, res) => {
 
                     console.log('Connection closed. Code:', statusCode, 'Reason:', reason);
 
-                    // Handle 428 error - this is NORMAL after session send
-                    if (statusCode === 428) {
-                        console.log('✅ Session sent successfully. 428 is expected - ignoring.');
-                        await removeFile('./temp/' + id);
-                        return;
-                    }
-
-                    // Handle expected closures
-                    if (statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403) {
-                        console.log('✅ Authentication ended normally');
+                    // If session is already processed, ignore ALL close events
+                    if (sessionProcessed) {
+                        console.log('✅ Session completed successfully. Ignoring close event.');
                         await removeFile('./temp/' + id);
                         return;
                     }
 
                     // Only retry for connection issues BEFORE session is sent
-                    if (!sessionProcessed && (statusCode === DisconnectReason.connectionClosed || 
+                    if (statusCode === DisconnectReason.connectionClosed || 
                         statusCode === DisconnectReason.connectionLost || 
-                        statusCode === DisconnectReason.timedOut)) {
+                        statusCode === DisconnectReason.timedOut) {
                         console.log('🔄 Connection issue, retrying...');
                         await delay(3000);
                         return JAWAD_MD_PAIR_CODE();
                     }
 
-                    // For any other case, just cleanup
-                    console.log('⛔ Session ended');
+                    // For any other case before session, just cleanup
+                    console.log('⛔ Session ended before completion');
                     await removeFile('./temp/' + id);
                 }
             });
